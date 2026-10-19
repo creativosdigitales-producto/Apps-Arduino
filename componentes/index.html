@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Placa de circuitos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --page:#0a2717; --silk:#eef0e2; --ink:#0b2616; --panel:#0f3a22; --gold:#e8b84e; --mint:#bfe3c8;
+  color-scheme:light dark;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){ --page:#05170c; color-scheme:dark; } }
+:root[data-theme="dark"]{ --page:#05170c; color-scheme:dark; }
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+html,body{height:100%;margin:0;overflow:hidden}
+body{background:var(--page);position:relative;font-family:'Pixelify Sans',ui-rounded,'Trebuchet MS',system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
+
+.stage{
+  --h:min(56.25vw, calc(100dvh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px)));
+  position:absolute;inset:0;margin:auto;
+  height:var(--h);width:calc(var(--h) * 16 / 9);
+  container-type:size;overflow:hidden;user-select:none;
+}
+canvas#board{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges;display:block}
+
+.hud{position:absolute;left:5cqw;right:5cqw;top:2.4cqh;display:flex;justify-content:space-between;align-items:flex-start;color:var(--silk);pointer-events:none}
+.hud h1{margin:0;font-size:2.3cqw;font-weight:700;letter-spacing:.04em;line-height:1.1}
+.hud p{margin:.3cqw 0 0;font-size:1.25cqw;opacity:.82}
+.prog{display:flex;align-items:center;gap:.9cqw;font-size:1.25cqw;padding-top:.3cqw}
+.leds{display:flex;gap:.45cqw}
+.leds span{width:1.05cqw;height:1.05cqw;background:#4a1712;box-shadow:inset -.2cqw -.2cqw 0 rgba(0,0,0,.35);transition:background .3s,box-shadow .3s}
+.leds span.on{background:#ff5a45;box-shadow:inset -.2cqw -.2cqw 0 rgba(0,0,0,.2),0 0 .9cqw #ff5a45}
+
+.hit{position:absolute;background:transparent;border:0;padding:0;margin:0;cursor:pointer;font:inherit}
+.hit:focus-visible{outline:.22cqw dashed var(--silk);outline-offset:.15cqw}
+.hit::after{
+  content:attr(data-name);position:absolute;left:50%;bottom:calc(100% + .5cqw);transform:translateX(-50%);
+  background:var(--silk);color:var(--ink);font-size:1.15cqw;font-weight:600;padding:.25cqw .6cqw;white-space:nowrap;
+  box-shadow:.25cqw .25cqw 0 rgba(0,0,0,.35);opacity:0;pointer-events:none;transition:opacity .15s
+}
+.hit:hover::after,.hit:focus-visible::after{opacity:1}
+
+.dlg{
+  position:absolute;left:4.5cqw;right:4.5cqw;bottom:3.6cqh;
+  display:grid;grid-template-columns:8.5cqw 1fr 12cqw;gap:1.6cqw;align-items:start;
+  padding:1.3cqw 1.7cqw 1.7cqw;background:var(--panel);color:var(--silk);
+  border:.32cqw solid var(--silk);
+  box-shadow:0 0 0 .32cqw var(--ink), .7cqw .7cqw 0 .32cqw rgba(0,0,0,.35);
+  transition:transform .18s ease-out, opacity .18s ease-out;
+}
+.dlg[hidden]{display:grid;opacity:0;transform:translateY(2cqh);pointer-events:none;visibility:hidden}
+.portrait{width:8.5cqw;aspect-ratio:16/13;image-rendering:pixelated;background:#174d2e;border:.25cqw solid var(--silk);padding:.3cqw}
+.dlg h2{margin:0 0 .45cqw;font-size:1.9cqw;font-weight:700;color:var(--gold)}
+.dlg .txt{margin:0;font-size:1.48cqw;line-height:1.36;min-height:4.05em;max-width:66ch}
+.dlg .fact{margin:.6cqw 0 0;font-size:1.22cqw;line-height:1.3;color:var(--mint)}
+.dlg .fact b{font-weight:700}
+.sym{border:.18cqw dashed rgba(238,240,226,.55);padding:.6cqw .7cqw .5cqw;text-align:center}
+.sym svg{width:100%;height:auto;display:block;stroke:var(--silk);fill:none;stroke-width:2.4;stroke-linecap:square;stroke-linejoin:miter}
+.sym small{display:block;font-size:1cqw;opacity:.75;margin-top:.35cqw}
+.sym[hidden]{visibility:hidden;display:block}
+.next{
+  position:absolute;right:1.7cqw;bottom:-1.7cqw;background:var(--gold);color:var(--ink);
+  border:.25cqw solid var(--ink);font:inherit;font-size:1.3cqw;font-weight:700;padding:.35cqw 1.2cqw;cursor:pointer;
+  box-shadow:.3cqw .3cqw 0 var(--ink)
+}
+.next:active{transform:translate(.15cqw,.15cqw);box-shadow:.15cqw .15cqw 0 var(--ink)}
+.next:focus-visible{outline:.22cqw dashed var(--silk);outline-offset:.2cqw}
+
+@media (prefers-reduced-motion:reduce){ .dlg{transition:none} }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <canvas id="board" width="256" height="144" aria-hidden="true"></canvas>
+
+  <div class="hud">
+    <div>
+      <h1>Placa de circuitos</h1>
+      <p>Tocá un componente que brille y te lo explico</p>
+    </div>
+    <div class="prog" aria-live="polite">
+      <span id="progTxt">0 de 8</span>
+      <div class="leds" id="leds"></div>
+    </div>
+  </div>
+
+  <div id="hits"></div>
+
+  <div class="dlg" id="dlg" hidden role="dialog" aria-live="polite">
+    <canvas class="portrait" id="portrait" width="16" height="13" aria-hidden="true"></canvas>
+    <div>
+      <h2 id="dName"></h2>
+      <p class="txt" id="dText"></p>
+      <p class="fact" id="dFact"></p>
+    </div>
+    <div class="sym" id="dSym"><div id="dSymSvg"></div><small>Símbolo en un esquema</small></div>
+    <button class="next" id="dNext">Entendido</button>
+  </div>
+</div>
+
+<script>
+const W=256,H=144;
+const cv=document.getElementById('board');
+const ctx=cv.getContext('2d');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------- Componentes ---------- */
+const COMPS=[
+ {id:'bat',name:'Batería',r:[14,30,25,10],side:1,sym:'bat',
+  text:'La batería es la fuente de energía del circuito. Tiene un polo positivo (+) y uno negativo (–), y empuja la corriente para que recorra los caminos de cobre. Sin ella, ¡nada se mueve!',
+  fact:'Una pila AA común entrega 1,5 voltios.'},
+ {id:'sw',name:'Interruptor',r:[64,30,16,10],side:-1,sym:'sw',text:null,
+  fact:'La luz de tu cuarto funciona igual: la tecla de la pared abre o cierra el circuito.'},
+ {id:'res',name:'Resistencia',r:[108,32,24,6],side:-1,sym:'res',
+  text:'La resistencia frena el paso de la corriente, como un caño más angosto frena el agua. Acá protege al LED para que no reciba demasiada energía y se queme.',
+  fact:'Las rayas de colores son un código: rojo, rojo, marrón significa 220 ohmios (Ω).'},
+ {id:'led',name:'LED',r:[157,24,10,20],py:29,side:-1,sym:'led',text:null,
+  fact:'Los LED gastan mucha menos energía que las lamparitas antiguas.'},
+ {id:'cap',name:'Capacitor',r:[204,24,12,18],py:30,side:-1,sym:'cap',
+  text:'El capacitor guarda energía por un ratito y la suelta muy rápido, como un pequeño tanque de agua. Sirve para suavizar la corriente y evitar saltos bruscos.',
+  fact:'Este es electrolítico: tiene polaridad. La franja clara marca la patita negativa.'},
+ {id:'dio',name:'Diodo',r:[196,70,18,6],side:-1,sym:'dio',
+  text:'El diodo deja pasar la corriente en un solo sentido, como una puerta que se abre hacia un solo lado. Si alguien conecta la batería al revés, la bloquea y protege la placa.',
+  fact:'La rayita plateada marca el cátodo, el lado por donde sale la corriente.'},
+ {id:'pot',name:'Potenciómetro',r:[140,64,14,14],side:-1,sym:'pot',
+  text:'Es una resistencia que podés ajustar girando la perilla. Se usa para cambiar el volumen de un parlante o el brillo de una luz.',
+  fact:'Tiene tres patitas: la del medio se desliza sobre la resistencia.'},
+ {id:'tr',name:'Transistor',r:[86,63,12,15],py:68,side:-1,sym:'tr',
+  text:'El transistor es un interruptor diminuto que se controla con electricidad: una corriente pequeña en una patita maneja una corriente grande en las otras dos. ¡Una computadora tiene miles de millones!',
+  fact:'Sus tres patitas se llaman base, colector y emisor.'}
+];
+
+const SYMS={
+ bat:'<svg viewBox="0 0 64 32"><path d="M2 16H26M26 5V27M36 11V21M36 16H62M15 6H21M18 3V9"/></svg>',
+ sw:'<svg viewBox="0 0 64 32"><path d="M2 16H17M45 16H62M22 14L40 5"/><circle cx="20" cy="16" r="2.6"/><circle cx="42" cy="16" r="2.6"/></svg>',
+ res:'<svg viewBox="0 0 64 32"><path d="M2 16H12L15 8L21 24L27 8L33 24L39 8L45 24L48 16H62"/></svg>',
+ led:'<svg viewBox="0 0 64 32"><path d="M2 18H22M38 18H62M38 8V28M22 8V28L38 18Z M41 9L48 2M45 2H48V5 M46 13L53 6M50 6H53V9"/></svg>',
+ cap:'<svg viewBox="0 0 64 32"><path d="M2 16H27M27 5V27M38 16H62M16 6H22M19 3V9"/><path d="M40 5Q34 16 40 27"/></svg>',
+ dio:'<svg viewBox="0 0 64 32"><path d="M2 16H22M38 16H62M38 6V26M22 6V26L38 16Z"/></svg>',
+ pot:'<svg viewBox="0 0 64 32"><path d="M2 18H12L15 10L21 26L27 10L33 26L39 10L45 26L48 18H62M32 1V8M29 5L32 8L35 5"/></svg>',
+ tr:'<svg viewBox="0 0 64 32"><circle cx="34" cy="16" r="13"/><path d="M4 16H28M28 8V24M28 12L40 5V0M28 20L40 27V32M35 26L40 27L38 22"/></svg>'
+};
+
+function compText(c){
+  if(c.id==='sw') return state.swOn
+    ? 'Acabo de cerrarlo: ahora la corriente puede pasar. Un interruptor abre o cierra el camino del circuito, como un puente levadizo. ¡Mirá cómo se prendió el LED!'
+    : 'Lo abrí: el camino quedó cortado y la corriente se detiene. Por eso el LED se apagó. Tocalo de nuevo cuando quieras volver a encenderlo.';
+  if(c.id==='led') return 'LED significa “diodo emisor de luz”. Brilla cuando la corriente lo atraviesa en el sentido correcto: la patita más larga va al positivo. '
+    + (state.swOn ? '¡Ahora está encendido!' : 'Ahora está apagado: probá tocar el interruptor.');
+  return c.text;
+}
+
+/* ---------- Estado ---------- */
+const state={swOn:false,found:new Set(),finalShown:false,dialogOpen:false,hover:null};
+const hero={x:124,y:100,tx:124,ty:100,facing:1,moving:false,pointing:false,target:null,walk:0};
+
+/* ---------- Pintura básica ---------- */
+let g=ctx;
+const R=(c,x,y,w,h)=>{g.fillStyle=c;g.fillRect(x,y,w,h)};
+const LEAD='#bcc2ca', GOLD='#e0b04a', SILK='#eef0e2', TRACE='#2f9256', MASK='#1d6a3b';
+
+const FONT={B:['110','101','110','101','110'],S:['011','100','010','001','110'],R:['110','101','110','101','101'],
+ D:['110','101','101','101','110'],C:['011','100','100','100','011'],Q:['010','101','101','110','011'],
+ '1':['010','110','010','010','111'],'2':['110','001','010','100','111'],'+':['000','010','111','010','000'],'-':['000','000','111','000','000']};
+function txt(s,x,y,col){ g.fillStyle=col||SILK; [...s].forEach((ch,i)=>{const m=FONT[ch]; if(!m)return;
+  m.forEach((row,ry)=>[...row].forEach((b,rx)=>{ if(b==='1') g.fillRect(x+i*4+rx,y+ry,1,1)}))}); }
+
+function trace(pts){
+  g.fillStyle=TRACE;
+  for(let i=0;i<pts.length-1;i++){
+    const [x1,y1]=pts[i],[x2,y2]=pts[i+1];
+    g.fillRect(Math.min(x1,x2)-1,Math.min(y1,y2)-1,Math.abs(x2-x1)+2,Math.abs(y2-y1)+2);
+  }
+}
+function pad(x,y){ R(GOLD,x-2,y-2,4,4); R('#8a6420',x-1,y-1,2,2); }
+function via(x,y){ R('#c9a24a',x-1,y-1,3,3); R('#123a22',x,y,1,1); }
+function outline(x,y,w,h){ g.globalAlpha=.5; R(SILK,x,y,w,1);R(SILK,x,y+h-1,w,1);R(SILK,x,y,1,h);R(SILK,x+w-1,y,1,h); g.globalAlpha=1; }
+
+/* Camino principal de la corriente */
+const LOOP=[[38,35],[64,35],[80,35],[108,35],[132,35],[150,35],[150,44],[159,44],[164,44],[172,44],[172,50],[230,50],[230,73],[214,73],[196,73],[190,73],[190,92],[8,92],[8,35],[14,35],[38,35]];
+
+/* ---------- Placa estática ---------- */
+const boardC=document.createElement('canvas'); boardC.width=W; boardC.height=H;
+(function paintBoard(){
+  g=boardC.getContext('2d');
+  R(MASK,0,0,W,H);
+  // textura mate
+  let seed=7; const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647};
+  for(let i=0;i<900;i++){ g.globalAlpha=.10+rnd()*.08; R(rnd()<.5?'#145230':'#24794a',Math.floor(rnd()*W),Math.floor(rnd()*H),1,1); }
+  g.globalAlpha=1;
+  // borde
+  R('#124a29',0,0,W,2);R('#124a29',0,H-2,W,2);R('#124a29',0,0,2,H);R('#124a29',W-2,0,2,H);
+  // agujeros de montaje
+  [[6,6],[W-7,6],[6,H-7],[W-7,H-7]].forEach(([x,y])=>{R(GOLD,x-2,y-3,5,7);R(GOLD,x-3,y-2,7,5);R('#0a2416',x-1,y-1,3,3);});
+  // pistas
+  trace(LOOP);
+  trace([[207,42],[207,50]]);
+  trace([[212,42],[212,46],[240,46],[240,92],[190,92]]);
+  trace([[92,78],[92,92]]);
+  trace([[147,78],[147,92]]);
+  trace([[96,78],[96,84],[143,84],[143,78]]);
+  trace([[88,78],[88,86],[60,86],[60,92]]);
+  trace([[151,78],[151,86],[180,86],[180,50]]);
+  trace([[24,92],[24,108],[44,108]]); trace([[214,92],[214,112],[236,112]]);
+  // pads
+  [[38,35],[14,35],[64,35],[80,35],[108,35],[132,35],[159,44],[164,44],[207,42],[212,42],[196,73],[214,73],
+   [143,78],[147,78],[151,78],[88,78],[92,78],[96,78]].forEach(p=>pad(...p));
+  // vias
+  [[8,35],[8,92],[190,92],[230,50],[230,73],[240,46],[240,92],[60,92],[180,50],[180,86],[44,108],[236,112],[120,58],[54,58],[226,30],[28,74]].forEach(p=>via(...p));
+  // serigrafía
+  COMPS.forEach(c=>{const [x,y,w,h]=c.r; outline(x-2,y-2,w+4,h+4);});
+  txt('B1',18,22); txt('+',33,22); txt('-',14,22);
+  txt('S1',66,22); txt('R1',114,25); txt('D1',157,16); txt('C1',204,15);
+  txt('D2',199,62); txt('R2',141,55); txt('Q1',86,54);
+  // batería
+  R('#26262b',15,30,17,10); R('#c8782a',32,30,4,10); R('#e19a4a',32,31,4,2);
+  R('#45454e',15,31,17,2); R('#111114',15,38,21,2); R('#9aa0a8',14,31,1,8); R('#c9ccd2',36,33,2,4);
+  R('#e8e2cf',20,33,8,3); R('#26262b',22,34,4,1);
+  // resistencia
+  R(LEAD,108,34,4,2); R(LEAD,128,34,4,2);
+  R('#e3c9a0',112,32,16,6); R('#e3c9a0',111,33,18,4);
+  R('#d9452f',114,32,2,6); R('#d9452f',118,32,2,6); R('#7a3b16',121,32,2,6); R('#d4af37',125,32,1,6);
+  g.globalAlpha=.2; R('#000',111,36,18,2); g.globalAlpha=.4; R('#fff',112,33,16,1); g.globalAlpha=1;
+  // capacitor
+  R(LEAD,207,38,1,4); R(LEAD,212,38,1,4);
+  R('#2b5fbf',205,25,10,14); R('#2b5fbf',204,26,12,12);
+  R('#b9c3cf',205,24,10,2); R('#8e98a5',209,24,2,2);
+  R('#a9c4ef',212,26,3,12); R('#2b5fbf',213,29,1,1); R('#2b5fbf',213,33,1,1);
+  g.globalAlpha=.3; R('#fff',206,27,1,10); R('#000',204,36,12,2); g.globalAlpha=1;
+  // diodo
+  R(LEAD,196,72,4,2); R(LEAD,210,72,4,2);
+  R('#1d1d22',200,70,10,6); R('#1d1d22',199,71,12,4); R('#c9ccd2',201,70,2,6);
+  g.globalAlpha=.35; R('#fff',203,71,6,1); g.globalAlpha=1;
+  // potenciómetro
+  R(LEAD,143,76,1,2); R(LEAD,147,76,1,2); R(LEAD,151,76,1,2);
+  R('#2b5fbf',140,64,14,12); R('#1f4a99',140,74,14,2);
+  R('#f2f2f2',144,66,6,8); R('#f2f2f2',143,67,8,6); R('#c9ccd2',143,72,8,1);
+  R('#8e98a5',146,67,2,6); R('#8e98a5',144,69,6,2);
+  // transistor
+  R(LEAD,88,72,1,6); R(LEAD,92,72,1,6); R(LEAD,96,72,1,6);
+  R('#1d1d22',87,64,11,8); R('#1d1d22',88,63,9,1); R('#3b3b44',87,64,11,2); R('#55555f',89,67,7,1);
+  // pequeños componentes de montaje superficial (decorativos)
+  [[30,56],[48,70],[118,100],[160,104],[222,120],[100,116]].forEach(([x,y])=>{R(GOLD,x,y,2,3);R(GOLD,x+5,y,2,3);R('#2a2a30',x+2,y,3,3);});
+  g=ctx;
+})();
+
+/* ---------- Partes dinámicas ---------- */
+function drawSwitch(){
+  R('#3a3f47',64,31,16,8); R('#525862',64,31,16,2); R('#22262c',64,38,16,1);
+  R('#15181c',67,33,10,4);
+  const kx=state.swOn?72:67;
+  R('#f4f4f4',kx,32,5,5); R('#c3cad3',kx,35,5,2); R('#9aa0a8',kx+2,33,1,2);
+  R(LEAD,64,35,1,1);R(LEAD,79,35,1,1);
+}
+function drawLED(t){
+  R(LEAD,159,34,1,10); R(LEAD,164,34,1,6); R(LEAD,164,40,1,4);
+  const on=state.swOn;
+  const body=on?'#ff4a38':'#9b2a22', rim=on?'#ff7a5c':'#7a1e18';
+  R(body,159,24,6,1); R(body,158,25,8,8); R(rim,157,33,10,2);
+  g.globalAlpha=on?.8:.45; R('#fff',159,26,1,4); R('#fff',160,25,2,1); g.globalAlpha=1;
+  if(on){
+    const flick=reduce?1:.85+.15*Math.sin(t*9);
+    g.globalCompositeOperation='lighter';
+    for(let r=1;r<=6;r++){ g.globalAlpha=.16*flick*(1-r/7); R('#ff3a22',158-r,24-r,8+2*r,11+2*r); }
+    g.globalCompositeOperation='source-over'; g.globalAlpha=1;
+  }
+}
+
+/* ---------- Brillo de componentes ---------- */
+function ring(x,y,w,h,col,a){
+  g.globalAlpha=a; g.fillStyle=col;
+  g.fillRect(x+1,y,w-2,1); g.fillRect(x+1,y+h-1,w-2,1); g.fillRect(x,y+1,1,h-2); g.fillRect(x+w-1,y+1,1,h-2);
+}
+function drawGlows(t){
+  g.globalCompositeOperation='lighter';
+  COMPS.forEach((c,i)=>{
+    const [x,y,w,h]=c.r;
+    const found=state.found.has(c.id), hov=state.hover===c.id;
+    let base=found?.10:.20, amp=found?.04:.14;
+    if(state.finalShown){ base=.16; amp=.14; }
+    let a=base+(reduce?0:amp*Math.sin(t*2.6+i*.9));
+    if(hov) a=.42;
+    for(let r=1;r<=4;r++) ring(x-r,y-r,w+2*r,h+2*r,'#fff1a6',a*(1.15-r*.24));
+    if(!found && !reduce){ // pequeño destello
+      const s=(t*1.3+i*.37)%3;
+      if(s<.35){ g.globalAlpha=.9*(1-s/.35); R('#fffbe0',x+w+1,y-3,1,3); R('#fffbe0',x+w,y-2,3,1); }
+    }
+  });
+  g.globalCompositeOperation='source-over'; g.globalAlpha=1;
+}
+
+/* ---------- Corriente ---------- */
+const segs=[]; let loopLen=0;
+for(let i=0;i<LOOP.length-1;i++){const [a,b]=[LOOP[i],LOOP[i+1]];const l=Math.hypot(b[0]-a[0],b[1]-a[1]);segs.push({a,b,l,s:loopLen});loopLen+=l;}
+function pointAt(d){ d=((d%loopLen)+loopLen)%loopLen; for(const s of segs){ if(d<=s.s+s.l){const k=(d-s.s)/s.l;return [s.a[0]+(s.b[0]-s.a[0])*k,s.a[1]+(s.b[1]-s.a[1])*k];} } return LOOP[0]; }
+function drawCurrent(t){
+  if(!state.swOn) return;
+  const off=reduce?0:(t*26)%12;
+  for(let d=0;d<loopLen;d+=12){ const [x,y]=pointAt(d+off); R('#ffe66b',Math.round(x)-1,Math.round(y)-1,2,2); }
+}
+
+/* ---------- Personaje ---------- */
+const PAL={W:'#f4f6f8',L:'#c3cad3',G:'#7f8a96',K:'#3a3f47',O:'#141a24',S:'#efbf93',s:'#d69a70',E:'#2a1d18',B:'#3aa0f0',b:'#1f63b8',M:'#a85a48'};
+const SPR=[
+"....OOOOOOOO....",
+"...OWWWWWWWWO...",
+"..OWWWWWWWWWLO..",
+".OWWWWWWWWWWWLO.",
+".OWWWWWWWWWWWLO.",
+"OBWOOOOOOOOOOWBO",
+"OBWOSSSSSSSSOWBO",
+"OBWOSESSSSESOWBO",
+"ObWOSESSSSESOWbO",
+"ObWOSSSSSSSSOWbO",
+"OBWOsSSMMSSsOWBO",
+".OWWOOOOOOOOWLO.",
+".OLWWWWWWWWWWLO.",
+"..OOLLLLLLLLOO..",
+"...OWWWWWWWWO...",
+"...OWBBWWWWLO...",
+"...OWBbWWWWLO...",
+"...OWWWWWWWLO...",
+"...OLLLLLLLLO..."
+];
+function spriteCell(ch,blink,talk){
+  if(blink && ch==='E') return PAL.S;
+  if(ch==='M') return talk?'#4a2018':PAL.M;
+  return PAL[ch];
+}
+function drawHero(t){
+  const walking=hero.moving;
+  const frame=walking?(Math.floor(hero.walk)%2)+1:0;
+  const bob=frame===1?-1:0;
+  const X=Math.round(hero.x)-8, Y=Math.round(hero.y)-23+bob, f=hero.facing;
+  const P=(c,r,w,h,col)=>{const cc=f>0?c:16-(c+w); g.fillStyle=col; g.fillRect(X+cc,Y+r,w,h);};
+  const blink=(t%3.4)<.12;
+  // sombra
+  g.globalAlpha=.25; R('#000',Math.round(hero.x)-6,Math.round(hero.y)-1,12,2); g.globalAlpha=1;
+  // brazo trasero
+  P(1,14,3,6,PAL.O); P(2,15,1,3,PAL.W); P(2,18,1,1,PAL.G);
+  // piernas
+  const leg=(c,lift)=>{P(c-1,19,5,4-lift,PAL.O);P(c,19,3,Math.max(1,2-lift),PAL.W);P(c+2,19,1,Math.max(1,2-lift),PAL.L);P(c,21-lift,3,1,PAL.K);};
+  leg(4,frame===1?1:0); leg(9,frame===2?1:0);
+  // cuerpo
+  SPR.forEach((row,r)=>{ for(let c=0;c<16;c++){const ch=row[c]; if(ch!=='.') P(c,r,1,1,spriteCell(ch,blink,false));} });
+  // brazo delantero
+  if(hero.pointing && !walking){ P(12,15,9,3,PAL.O); P(13,16,5,1,PAL.W); P(18,16,2,1,PAL.G); }
+  else { P(12,14,3,6,PAL.O); P(13,15,1,3,PAL.W); P(13,18,1,1,PAL.G); }
+}
+
+/* retrato del diálogo */
+const pc=document.getElementById('portrait').getContext('2d');
+function drawPortrait(t,talking){
+  pc.clearRect(0,0,16,13);
+  const blink=(t%3.4)<.12, talk=talking&&Math.floor(t*10)%2===0;
+  for(let r=0;r<13;r++) for(let c=0;c<16;c++){const ch=SPR[r][c]; if(ch==='.')continue; pc.fillStyle=spriteCell(ch,blink,talk); pc.fillRect(c,r,1,1);}
+}
+
+/* ---------- Botones sobre la placa ---------- */
+const hits=document.getElementById('hits');
+COMPS.forEach(c=>{
+  const [x,y,w,h]=c.r, m=3;
+  const b=document.createElement('button');
+  b.className='hit'; b.dataset.name=c.name; b.setAttribute('aria-label',c.name);
+  Object.assign(b.style,{left:((x-m)/W*100)+'%',top:((y-m)/H*100)+'%',width:((w+2*m)/W*100)+'%',height:((h+2*m)/H*100)+'%'});
+  b.addEventListener('click',e=>{e.stopPropagation(); goTo(c);});
+  b.addEventListener('pointerenter',()=>state.hover=c.id);
+  b.addEventListener('pointerleave',()=>{if(state.hover===c.id)state.hover=null;});
+  b.addEventListener('focus',()=>state.hover=c.id);
+  b.addEventListener('blur',()=>{if(state.hover===c.id)state.hover=null;});
+  hits.appendChild(b);
+});
+const leds=document.getElementById('leds');
+COMPS.forEach(()=>leds.appendChild(document.createElement('span')));
+function updateProgress(){
+  document.getElementById('progTxt').textContent=state.found.size+' de '+COMPS.length;
+  [...leds.children].forEach((s,i)=>s.classList.toggle('on',i<state.found.size));
+}
+
+/* ---------- Movimiento ---------- */
+function goTo(c){
+  closeDialog(true);
+  const [x,y,w,h]=c.r, py=c.py??(y+h/2);
+  hero.target=c;
+  hero.tx = c.side<0 ? x-14 : x+w+14;
+  hero.ty = Math.round(py)+7;
+  hero.pointing=false;
+  hero.moving=true;
+}
+function arrive(){
+  const c=hero.target; hero.moving=false;
+  hero.x=hero.tx; hero.y=hero.ty;
+  hero.facing=c.side<0?1:-1; hero.pointing=true;
+  if(c.id==='sw') state.swOn=!state.swOn;
+  state.found.add(c.id); updateProgress();
+  openDialog(c.name,compText(c),c.fact,SYMS[c.sym]);
+}
+
+/* ---------- Diálogo ---------- */
+const dlg=document.getElementById('dlg'), dText=document.getElementById('dText'),
+      dName=document.getElementById('dName'), dFact=document.getElementById('dFact'),
+      dSym=document.getElementById('dSym'), dSymSvg=document.getElementById('dSymSvg');
+let typing={full:'',i:0};
+function openDialog(name,text,fact,svg){
+  dName.textContent=name;
+  typing={full:text,i:reduce?text.length:0};
+  dText.textContent=typing.full.slice(0,typing.i);
+  dFact.innerHTML=fact?'<b>Dato:</b> '+fact:'';
+  if(svg){dSymSvg.innerHTML=svg; dSym.hidden=false;} else {dSymSvg.innerHTML=''; dSym.hidden=true;}
+  dlg.hidden=false; state.dialogOpen=true;
+}
+function closeDialog(silent){
+  if(!state.dialogOpen) return;
+  dlg.hidden=true; state.dialogOpen=false; hero.pointing=false;
+  if(!silent && state.found.size===COMPS.length && !state.finalShown){
+    state.finalShown=true;
+    hero.tx=124; hero.ty=100; hero.target=null; hero.moving=true;
+  }
+}
+dlg.addEventListener('click',e=>{ if(typing.i<typing.full.length){typing.i=typing.full.length; dText.textContent=typing.full;} e.stopPropagation(); });
+document.getElementById('dNext').addEventListener('click',e=>{e.stopPropagation(); closeDialog(false);});
+cv.addEventListener('click',()=>closeDialog(false));
+addEventListener('keydown',e=>{ if(e.key==='Escape') closeDialog(false); });
+
+/* ---------- Bucle ---------- */
+let last=performance.now();
+function loop(now){
+  const dt=Math.min(.05,(now-last)/1000); last=now; const t=now/1000;
+
+  if(hero.moving){
+    const dx=hero.tx-hero.x, dy=hero.ty-hero.y, d=Math.hypot(dx,dy), sp=reduce?400:58;
+    if(Math.abs(dx)>.5) hero.facing=dx>0?1:-1;
+    if(d<=sp*dt){
+      if(hero.target) arrive();
+      else { hero.moving=false; hero.x=hero.tx; hero.y=hero.ty; hero.facing=1;
+        openDialog('¡Placa completa!','Descubriste los 8 componentes. Ya sabés qué hace cada pieza de un circuito: la batería da energía, el interruptor abre y cierra el camino, y los demás controlan cómo viaja la corriente.','Podés volver a tocar cualquier componente para repasarlo.',null); }
+    } else { hero.x+=dx/d*sp*dt; hero.y+=dy/d*sp*dt; hero.walk+=dt*8; }
+  }
+
+  if(state.dialogOpen && typing.i<typing.full.length){
+    typing.i=Math.min(typing.full.length,typing.i+dt*45);
+    dText.textContent=typing.full.slice(0,Math.floor(typing.i));
+  }
+
+  g=ctx;
+  ctx.drawImage(boardC,0,0);
+  drawCurrent(t);
+  drawSwitch();
+  drawLED(t);
+  drawGlows(t);
+  drawHero(t);
+  if(state.dialogOpen) drawPortrait(t,typing.i<typing.full.length);
+
+  requestAnimationFrame(loop);
+}
+
+updateProgress();
+openDialog('¡Hola!','Esta es una placa de circuito. Cada pieza que brilla es un componente con una tarea especial. Hacé clic en una y voy hasta ahí para contarte qué hace.','Empezá por el interruptor si querés ver encenderse el LED.',null);
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
