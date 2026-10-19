@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Circuito brillante</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#111a2a; --paper:#f5f8f4; --ink:#13213d; --muted:#4d5b78; --line:#d5dde3;
+  --pcb:#0f6340; --plate:#13774d; --plate-l:#1a8a5a; --pcb-dark:#06331f;
+  --copper:#c98a4b; --live:#ffd75e; --hat:#ffc21a; --hat-d:#b98200;
+  --ok:#23a862; --ok-d:#16774a; --bad:#e5484d;
+  --f:'Baloo 2','Trebuchet MS','Segoe UI',system-ui,sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ --bg:#0b1220; --paper:#18233a; --ink:#eef2fa; --muted:#a9b4cc; --line:#2c3a56; }
+}
+:root[data-theme="dark"]{ --bg:#0b1220; --paper:#18233a; --ink:#eef2fa; --muted:#a9b4cc; --line:#2c3a56; }
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+html,body{margin:0;height:100%}
+body{
+  font-family:var(--f); color:var(--ink); overflow:hidden; background-color:var(--bg);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cg fill='none' stroke='%2350c8a0' stroke-opacity='.09' stroke-width='3'%3E%3Cpath d='M0 40h70l30 30h60M240 40h-40M30 240v-60l30-30h80l20-20V0M200 240v-50l-30-30M0 200h50M240 120h-60l-20 20v40'/%3E%3C/g%3E%3Cg fill='%2350c8a0' fill-opacity='.12'%3E%3Ccircle cx='160' cy='70' r='6'/%3E%3Ccircle cx='50' cy='200' r='6'/%3E%3Ccircle cx='170' cy='160' r='6'/%3E%3Ccircle cx='160' cy='180' r='6'/%3E%3C/g%3E%3C/svg%3E");
+}
+button{font:inherit;cursor:pointer}
+button:focus-visible,.cell:focus-visible{outline:3px solid var(--hat);outline-offset:3px}
+
+.app{height:100%;display:grid;grid-template-columns:minmax(290px,340px) minmax(0,1fr);gap:20px;padding:20px}
+.side{background:var(--paper);border-radius:22px;padding:18px 20px 0;display:flex;flex-direction:column;gap:12px;min-height:0;overflow:hidden;box-shadow:0 6px 0 rgba(0,0,0,.3)}
+h1{margin:0;font-size:2rem;line-height:1;font-weight:800;letter-spacing:-.01em}
+
+.clock{background:#0e1830;color:#fff;border-radius:16px;padding:10px 14px 12px;display:grid;grid-template-columns:auto 1fr;align-items:center;gap:2px 12px}
+.clock .ico{grid-row:1/3;width:32px;height:32px}
+.clock .lab{font-size:.9rem;color:#9fb0d4;line-height:1}
+#time{font-size:2.5rem;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+.bar{grid-column:1/3;height:8px;border-radius:8px;background:#26365c;overflow:hidden;margin-top:8px}
+.bar i{display:block;height:100%;width:100%;background:var(--live);border-radius:8px;transition:width .25s linear}
+.clock.low #time{color:#ff8a8d;animation:pulse 1s infinite}
+.clock.low .bar i{background:var(--bad)}
+@keyframes pulse{50%{opacity:.55}}
+
+.stats{display:flex;justify-content:space-between;font-size:1rem;color:var(--muted);gap:8px}
+.stats b{color:var(--ink);font-size:1.2rem}
+.prog{list-style:none;margin:-4px 0 0;padding:0;display:grid;grid-template-columns:repeat(15,1fr);gap:4px}
+.prog li{height:9px;border-radius:5px;background:var(--line)}
+.prog li.done{background:var(--ok)}
+.prog li.cur{background:var(--hat)}
+
+.legend{display:flex;gap:8px}
+.legend figure{margin:0;flex:1;text-align:center;font-size:.85rem;color:var(--muted);line-height:1.2}
+.legend svg{display:block;width:100%;max-width:46px;margin:0 auto 3px;border-radius:9px}
+
+.tools{display:flex;gap:10px}
+.btn{border:0;border-radius:14px;padding:9px 14px;font-weight:700;font-size:1rem;color:var(--ink);background:var(--line);box-shadow:0 4px 0 rgba(0,0,0,.18)}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 rgba(0,0,0,.18)}
+.btn.main{background:var(--hat);color:#2b1e00;box-shadow:0 5px 0 var(--hat-d)}
+.btn.go{background:var(--ok);color:#fff;box-shadow:0 5px 0 var(--ok-d)}
+.btn.big{font-size:1.3rem;padding:12px 28px}
+#reset{flex:1}
+
+/* Mascota */
+.buddy{flex:1;min-height:200px;display:flex;flex-direction:column;align-items:center;gap:10px;padding-bottom:8px}
+.bubble{position:relative;max-width:290px;background:#fff;color:#13213d;border:3px solid #13213d;border-radius:16px;padding:8px 12px;font-weight:600;font-size:.98rem;line-height:1.28;text-align:center}
+.bubble b{display:block;font-weight:800;color:#0f6340}
+.bubble::after{content:"";position:absolute;bottom:-11px;left:46%;width:16px;height:16px;background:#fff;border-right:3px solid #13213d;border-bottom:3px solid #13213d;transform:rotate(45deg)}
+.bubble.pop{animation:pop .35s cubic-bezier(.3,1.6,.6,1)}
+@keyframes pop{from{transform:scale(.7);opacity:0}}
+.buddy-btn{flex:1;min-height:0;width:100%;border:0;background:none;padding:0;display:flex;justify-content:center;align-items:flex-end;border-radius:16px}
+.buddy-btn svg{height:100%;max-height:210px;width:auto;display:block;overflow:visible}
+.mascot{animation:bob 2.4s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(-4px)}}
+.wave{transform-box:view-box;transform-origin:131px 124px;animation:wave 1.6s ease-in-out infinite}
+@keyframes wave{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(16deg)}}
+.larm{transform-box:view-box;transform-origin:53px 127px;transition:transform .45s cubic-bezier(.3,1.3,.6,1)}
+.reach .larm{transform:rotate(38deg)}
+.show .larm{transform:rotate(100deg)}
+.item{opacity:0;transform-box:view-box;transform-origin:-16px 100px;transform:scale(.2);transition:opacity .25s,transform .4s cubic-bezier(.3,1.6,.6,1)}
+.show .item{opacity:1;transform:scale(1)}
+.eye{transform-box:fill-box;transform-origin:center;animation:blink 4.2s infinite}
+@keyframes blink{0%,94%,100%{transform:scaleY(1)}97%{transform:scaleY(.1)}}
+.mouth-open{display:none}
+.happy .mouth-open,.show .mouth-open{display:inline}.happy .mouth-smile,.show .mouth-smile{display:none}
+.happy .mascot{animation:jump .5s ease-out 3}
+@keyframes jump{40%{transform:translateY(-18px)}}
+.sad .wave{animation:none;transform:rotate(-70deg) translate(-4px,24px)}
+
+/* Tablero */
+.board-wrap{min-width:0;min-height:0;display:grid;place-items:center}
+#board{width:100%;height:100%;display:block;user-select:none;-webkit-user-select:none;touch-action:manipulation}
+.cell{cursor:pointer}
+.plate{fill:var(--plate);stroke:var(--plate-l);stroke-width:2;transition:fill .15s}
+.cell:hover .plate{fill:#178657}
+.cell.empty{cursor:default}.cell.empty:hover .plate{fill:var(--plate)}
+.rot{transform-box:fill-box;transform-origin:center;transition:transform .2s cubic-bezier(.3,1.5,.6,1)}
+.wire-out{stroke:var(--pcb-dark);stroke-width:22;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.wire{stroke:var(--copper);stroke-width:12;fill:none;stroke-linecap:round;stroke-linejoin:round;transition:stroke .2s}
+.hub{fill:#d7dbe2;stroke:var(--pcb-dark);stroke-width:4}
+.hub-in{fill:var(--copper);transition:fill .2s}
+.flow{stroke:#e9fdff;stroke-width:4;fill:none;stroke-linecap:round;stroke-dasharray:3 17;opacity:0;animation:flow .7s linear infinite}
+@keyframes flow{to{stroke-dashoffset:-40}}
+.lit .wire,.live .wire{stroke:var(--live)}
+.lit .hub-in{fill:var(--live)}
+.lit .flow,.live .flow{opacity:.95}
+.lit .rot,.live{filter:drop-shadow(0 0 5px rgba(255,215,94,.75))}
+.cell.hint .plate{stroke:#ffd75e;stroke-width:7;animation:hintp .6s ease-in-out infinite alternate}
+@keyframes hintp{to{stroke-opacity:.25;fill:#1f9a66}}
+.led .glow{opacity:0;transition:opacity .35s}
+.led .dome{fill-opacity:.28;transition:fill-opacity .3s}
+.led.on .glow{opacity:.85}
+.led.on .dome{fill-opacity:1}
+.led.on .shine{opacity:1}
+.shine{opacity:.35}
+.silk{font-family:var(--f);font-weight:700;fill:#e8f5ee}
+
+/* Pantallas */
+.screen{position:fixed;inset:0;z-index:10;display:grid;place-items:center;padding:20px;background:rgba(6,14,28,.74);backdrop-filter:blur(3px);overflow:auto}
+.screen[hidden]{display:none}
+.card{background:var(--paper);color:var(--ink);border-radius:26px;padding:28px 30px;max-width:540px;width:100%;text-align:center;box-shadow:0 10px 0 rgba(0,0,0,.3);position:relative;animation:pop .4s cubic-bezier(.3,1.5,.6,1);margin-top:70px}
+.card h2{margin:0;font-size:2.6rem;line-height:1.05;font-weight:800}
+.card p{margin:10px auto 0;font-size:1.15rem;line-height:1.4;max-width:42ch;color:var(--muted)}
+.card .who{height:150px;margin:-100px auto 6px;display:block}
+.card .who svg{height:100%;width:auto;overflow:visible}
+.win-title{color:var(--ok);letter-spacing:.02em}
+.lose-title{color:var(--bad)}
+.modes{display:grid;gap:8px;margin:18px 0 20px;text-align:left}
+.modes label{display:flex;gap:10px;align-items:center;border:2px solid var(--line);border-radius:14px;padding:10px 14px;font-weight:600;cursor:pointer}
+.modes input{accent-color:#e0a400;width:20px;height:20px;flex:none}
+.modes label:has(input:checked){border-color:var(--hat);background:rgba(255,194,26,.12)}
+.how{display:flex;gap:10px;justify-content:center;margin-top:14px}
+.how svg{width:44px;height:44px;border-radius:9px}
+.card .actions{margin-top:20px}
+.confetti{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:11}
+.confetti i{position:absolute;top:-20px;width:10px;height:14px;animation:fall linear forwards}
+@keyframes fall{to{transform:translateY(110vh) rotate(720deg)}}
+
+@media (max-width:860px), (max-aspect-ratio:4/5){
+  body{overflow:auto}
+  .app{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr);gap:12px;padding:12px;height:auto;min-height:100%}
+  .side{padding:14px;gap:10px}
+  .legend{display:none}
+  h1{font-size:1.6rem}
+  #time{font-size:2rem}
+  .buddy{min-height:0;height:104px;flex-direction:row-reverse;justify-content:flex-end;align-items:center;padding:0;gap:14px}
+  .buddy-btn{flex:0 0 auto;width:auto;height:104px}
+  .buddy-btn svg{height:104px;max-height:104px}
+  .bubble{font-size:.88rem;padding:6px 10px;max-width:none;flex:1}
+  .bubble::after{bottom:auto;left:-10px;top:40%;transform:rotate(135deg)}
+  .board-wrap{min-height:0;place-items:start center}
+  #board{height:auto}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <h1>Circuito brillante</h1>
+    <div class="clock" id="clock">
+      <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="9" fill="none" stroke="#ffd75e" stroke-width="2.5"/><path d="M12 8v5l3 2M9 2h6" stroke="#ffd75e" stroke-width="2.5" fill="none" stroke-linecap="round"/></svg>
+      <span class="lab" id="clockLab">Tiempo del reto</span>
+      <span id="time">5:00</span>
+      <div class="bar"><i id="timebar"></i></div>
+    </div>
+    <div class="stats"><span>Nivel <b id="lv">1</b> de 15</span><span>LED <b id="ld">0/1</b></span><span>Giros <b id="mv">0</b></span></div>
+    <ol class="prog" id="prog" aria-label="Progreso de niveles"></ol>
+    <div class="legend" aria-label="Tipos de pieza">
+      <figure><svg viewBox="0 0 100 100" data-piece="I"></svg>Recta</figure>
+      <figure><svg viewBox="0 0 100 100" data-piece="L"></svg>Curva</figure>
+      <figure><svg viewBox="0 0 100 100" data-piece="T"></svg>En T</figure>
+      <figure><svg viewBox="0 0 100 100" data-piece="X"></svg>En cruz</figure>
+    </div>
+    <div class="tools">
+      <button class="btn" id="reset" type="button">Reiniciar nivel</button>
+      <button class="btn" id="sound" type="button" aria-pressed="true">Sonido: sí</button>
+    </div>
+    <div class="buddy" id="buddy">
+      <div class="bubble" id="bubble" role="status">¡Hola! Soy Chispa.</div>
+      <button class="buddy-btn" id="buddyBtn" type="button" aria-label="Toca a Chispa para conocer otro componente">
+        <svg viewBox="-52 -12 222 226" aria-hidden="true" id="buddySvg"></svg>
+      </button>
+    </div>
+  </aside>
+  <main class="board-wrap">
+    <svg id="board" role="group" aria-label="Placa del circuito"></svg>
+  </main>
+</div>
+
+<section class="screen" id="start">
+  <div class="card">
+    <span class="who" id="whoStart"></span>
+    <h2>Circuito brillante</h2>
+    <p>Toca una pieza de cobre para girarla. Lleva la energía de la batería hasta todos los LED. Si pasan 30 segundos, Chispa te dará una pista. Hay 15 niveles: cada uno tiene una placa más grande y más LED para encender.</p>
+    <div class="how" id="how"></div>
+    <div class="modes" role="radiogroup" aria-label="Modo de tiempo">
+      <label><input type="radio" name="mode" value="total" checked> 5 minutos para completar los 15 niveles</label>
+      <label><input type="radio" name="mode" value="nivel"> 5 minutos por cada nivel</label>
+    </div>
+    <button class="btn main big" id="go" type="button">Comenzar</button>
+  </div>
+</section>
+
+<section class="screen" id="win" hidden>
+  <div class="card">
+    <span class="who" id="whoWin"></span>
+    <h2 class="win-title">¡FELICITACIONES!</h2>
+    <p id="winTxt"></p>
+    <div class="actions"><button class="btn go big" id="again" type="button">Jugar de nuevo</button></div>
+  </div>
+</section>
+
+<section class="screen" id="lose" hidden>
+  <div class="card">
+    <span class="who" id="whoLose"></span>
+    <h2 class="lose-title">Perdiste</h2>
+    <p id="loseTxt"></p>
+    <div class="actions"><button class="btn main big" id="retry" type="button">Reiniciar</button></div>
+  </div>
+</section>
+
+<script>
+/* ---------- Componentes que Chispa saca de la mochila ---------- */
+const ICON={
+ led:`<path d="M-5 8V27M5 8V21" stroke="#a7afbd" stroke-width="3"/><rect x="-14" y="5" width="28" height="6" rx="2" fill="#b3262b"/><path d="M-11 6V-6A11 11 0 0 1 11 -6V6Z" fill="#ff4d4d"/><rect x="-6" y="-10" width="4" height="9" rx="2" fill="#fff" opacity=".7"/>`,
+ resistencia:`<path d="M-28 0H28" stroke="#a7afbd" stroke-width="3"/><rect x="-16" y="-8" width="32" height="16" rx="7" fill="#e8c99b"/><rect x="-10" y="-8" width="4" height="16" fill="#8b4513"/><rect x="-3" y="-8" width="4" height="16" fill="#222"/><rect x="4" y="-8" width="4" height="16" fill="#e5484d"/><rect x="11" y="-7" width="3" height="14" fill="#d4af37"/>`,
+ pila:`<rect x="-11" y="-20" width="22" height="40" rx="4" fill="#263238"/><rect x="-11" y="-20" width="22" height="13" rx="4" fill="#e08a2e"/><rect x="-4" y="-25" width="8" height="5" rx="1" fill="#c9ced6"/><text x="0" y="-9" text-anchor="middle" font-size="11" font-weight="800" fill="#fff" font-family="sans-serif">+</text><text x="0" y="15" text-anchor="middle" font-size="12" font-weight="800" fill="#fff" font-family="sans-serif">−</text>`,
+ condensador:`<path d="M-4 12V28M4 12V23" stroke="#a7afbd" stroke-width="3"/><rect x="-11" y="-18" width="22" height="31" rx="4" fill="#2b6cd6"/><rect x="4" y="-18" width="5" height="31" fill="#cfe0ff"/><ellipse cx="0" cy="-17" rx="10" ry="3" fill="#9aa5ba"/>`,
+ interruptor:`<rect x="-18" y="0" width="36" height="13" rx="3" fill="#3a3f47"/><path d="M-2 2L10 -18" stroke="#c9ced6" stroke-width="5" stroke-linecap="round"/><circle cx="10" cy="-18" r="5" fill="#e5484d"/><path d="M-12 13V22M12 13V22" stroke="#a7afbd" stroke-width="3"/>`,
+ pulsador:`<path d="M-12 8V20M12 8V20" stroke="#a7afbd" stroke-width="3"/><rect x="-15" y="-8" width="30" height="18" rx="3" fill="#3a3f47"/><circle cx="0" cy="-8" r="9" fill="#e5484d"/><circle cx="-3" cy="-11" r="3" fill="#ff9a9d"/>`,
+ zumbador:`<path d="M-5 14V27M5 14V23" stroke="#a7afbd" stroke-width="3"/><circle r="17" fill="#26262c"/><circle r="12" fill="none" stroke="#3d3d45" stroke-width="2"/><circle r="4" fill="#555"/>`,
+ motor:`<rect x="-20" y="-13" width="30" height="26" rx="6" fill="#9aa5ba"/><rect x="8" y="-9" width="7" height="18" rx="2" fill="#c98a4b"/><path d="M15 0H28" stroke="#c9ced6" stroke-width="3.5" stroke-linecap="round"/><path d="M-20 -6H-27M-20 6H-27" stroke="#e5484d" stroke-width="3"/>`,
+ diodo:`<path d="M-28 0H28" stroke="#a7afbd" stroke-width="3"/><rect x="-13" y="-7" width="26" height="14" rx="3" fill="#222"/><rect x="6" y="-7" width="4" height="14" fill="#c9ced6"/>`,
+ transistor:`<path d="M-7 6V26M0 6V26M7 6V26" stroke="#a7afbd" stroke-width="3"/><path d="M-12 8V-4A12 12 0 0 1 12 -4V8Z" fill="#222"/><rect x="-8" y="-2" width="16" height="3" fill="#444"/>`,
+ potenciometro:`<path d="M-8 10V24M0 10V24M8 10V24" stroke="#a7afbd" stroke-width="3"/><rect x="-15" y="-12" width="30" height="24" rx="3" fill="#2b6cd6"/><circle cy="0" r="8" fill="#e8eaee"/><path d="M0 0L0 -7" stroke="#2b6cd6" stroke-width="3" stroke-linecap="round"/>`,
+ ldr:`<path d="M-5 12V27M5 12V27" stroke="#a7afbd" stroke-width="3"/><circle r="14" fill="#e08a2e"/><path d="M-8 -7H6V-3H-6V1H6V5H-8" stroke="#7a3b10" stroke-width="2" fill="none"/>`,
+ cable:`<path d="M-22 12C-22 -18 -2 -18 -2 0S18 18 18 -12" stroke="#e5484d" stroke-width="6" fill="none" stroke-linecap="round"/><path d="M-22 12V18M18 -12V-18" stroke="#c98a4b" stroke-width="4" stroke-linecap="round"/>`
+};
+const COMP=[
+ ['led','un LED','Se usa para encender luces. Gasta muy poca energía y tiene una pata larga (+) y una corta (−).'],
+ ['resistencia','una resistencia','Se usa para frenar el paso de la corriente y así proteger otros componentes, como los LED.'],
+ ['pila','una pila','Guarda energía y la entrega como electricidad. Tiene un polo positivo (+) y uno negativo (−).'],
+ ['interruptor','un interruptor','Se usa para abrir o cerrar el circuito: así enciendes o apagas un aparato.'],
+ ['condensador','un condensador','Guarda un poquito de energía y la suelta muy rápido, como un mini tanque de electricidad.'],
+ ['pulsador','un pulsador','Deja pasar la corriente solo mientras lo mantienes presionado, como el botón de un timbre.'],
+ ['zumbador','un zumbador','Se usa para hacer pitidos, como los de un microondas o una alarma.'],
+ ['motor','un motor','Convierte la electricidad en movimiento. Lo encuentras en ventiladores y juguetes con ruedas.'],
+ ['diodo','un diodo','Deja pasar la corriente en un solo sentido, como una puerta que solo se abre hacia un lado.'],
+ ['transistor','un transistor','Funciona como un interruptor diminuto y muy rápido. ¡Las computadoras tienen millones!'],
+ ['potenciometro','un potenciómetro','Es una resistencia que puedes girar para subir o bajar algo, por ejemplo, el volumen.'],
+ ['ldr','una fotorresistencia','Cambia según la luz que recibe. Sirve para que una lámpara se encienda sola de noche.'],
+ ['cable','un cable','Por dentro tiene cobre, que conduce la electricidad, y por fuera plástico, que nos protege.']
+];
+
+/* ---------- Mascota en vóxeles ---------- */
+const PAL={
+  w:{f:'#f3f5f9',t:'#ffffff',s:'#c9d0db'}, g:{f:'#6b7280',t:'#8b93a1',s:'#4b5260'},
+  k:{f:'#3a3f47',t:'#565d68',s:'#262a30'}, b:{f:'#2b8ce6',t:'#62b6ff',s:'#1b62aa'},
+  y:{f:'#ffc21a',t:'#ffdb5c',s:'#d39a00'}, yl:{f:'#ffd440',t:'#ffe78a',s:'#e0a800'},
+  br:{f:'#7a4b2a',t:'#9a6740',s:'#583318'}, r:{f:'#e5484d',t:'#ff7a7e',s:'#ad262b'}, rd:{f:'#c23338',t:'#e25a5e',s:'#8c1c20'}
+};
+function vox(x,y,w,h,d,p){
+  const dx=-d*.45,dy=-d*.32,P=a=>a.map(v=>v.join(',')).join(' ');
+  return `<polygon points="${P([[x,y],[x+w,y],[x+w+dx,y+dy],[x+dx,y+dy]])}" fill="${p.t}"/>`+
+         `<polygon points="${P([[x,y],[x+dx,y+dy],[x+dx,y+h+dy],[x,y+h]])}" fill="${p.s}"/>`+
+         `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${p.f}"/>`;
+}
+function mascotSVG(){
+  return `<g class="mascot">`+
+  vox(64,184,26,14,32,PAL.k)+vox(94,184,26,14,32,PAL.k)+
+  vox(66,162,22,24,28,PAL.w)+vox(96,162,22,24,28,PAL.w)+
+  vox(34,100,36,52,36,PAL.r)+vox(34,100,36,13,38,PAL.rd)+
+  `<g class="larm">`+vox(46,124,15,30,24,PAL.w)+vox(46,152,15,12,24,PAL.g)+`</g>`+
+  vox(60,120,64,44,40,PAL.w)+
+  `<rect x="66" y="124" width="7" height="28" fill="#ad262b"/><rect x="111" y="124" width="7" height="28" fill="#ad262b"/>`+
+  vox(60,120,64,9,40,PAL.b)+
+  vox(60,150,64,7,40,PAL.br)+`<rect x="86" y="149" width="12" height="9" fill="#ffc21a" stroke="#7a5200" stroke-width="1.5"/>`+
+  `<rect x="104" y="156" width="7" height="14" fill="#e5484d"/><rect x="105" y="168" width="5" height="6" fill="#9aa3b2"/>`+
+  `<g class="wave">`+vox(124,92,15,32,24,PAL.w)+vox(124,79,15,14,24,PAL.g)+`</g>`+
+  vox(44,44,96,80,52,PAL.w)+vox(32,74,12,28,18,PAL.w)+
+  `<rect x="60" y="62" width="66" height="50" fill="#edbb93"/><rect x="60" y="62" width="66" height="7" fill="#d39a72"/>`+
+  `<rect x="121" y="62" width="5" height="50" fill="#79bfff"/>`+
+  `<rect class="eye" x="76" y="80" width="9" height="12" fill="#26262c"/><rect class="eye" x="101" y="80" width="9" height="12" fill="#26262c"/>`+
+  `<rect x="67" y="96" width="9" height="5" fill="#f08a8a" opacity=".55"/><rect x="110" y="96" width="9" height="5" fill="#f08a8a" opacity=".55"/>`+
+  `<path class="mouth-smile" d="M88 98 q5 5 10 0" stroke="#5a2b1f" stroke-width="2.6" fill="none" stroke-linecap="round"/>`+
+  `<path class="mouth-open" d="M86 97 h14 q0 9 -7 9 q-7 0 -7 -9z" fill="#7a2b22"/>`+
+  vox(36,36,112,10,62,PAL.y)+vox(50,14,84,23,50,PAL.y)+vox(64,4,56,11,40,PAL.y)+vox(86,-3,12,8,46,PAL.yl)+
+  `<polygon points="95,17 86,29 92,29 88,36 99,23 93,23 97,17" fill="#7a5200"/>`+
+  `</g><g class="item"><circle cx="-16" cy="78" r="35" fill="#fff" opacity=".9" stroke="#13213d" stroke-width="2.5"/><g id="itemIcon" transform="translate(-16 78)"></g></g>`;
+}
+
+/* ---------- Pistas ---------- */
+const BASE={I:5,L:3,T:14,X:15}, NAME={I:'recta',L:'en curva',T:'en T',X:'en cruz'};
+const SHAPE={I:'M50 -1 V101', L:'M50 -1 V26 Q50 50 74 50 H101', T:'M-1 50 H101 M50 50 V101', X:'M50 -1 V101 M-1 50 H101'};
+const D=[[1,0,-1],[2,1,0],[4,0,1],[8,-1,0]];
+const rotm=m=>((m<<1)|(m>>3))&15, opp=b=>((b<<2)|(b>>2))&15;
+const maskOf=(t,r)=>{let m=BASE[t];for(let i=0;i<r;i++)m=rotm(m);return m};
+const bits=m=>(m&1)+(m>>1&1)+(m>>2&1)+(m>>3&1);
+function pieceInner(t){
+  const hub=(t==='T'||t==='X')?`<circle class="hub" cx="50" cy="50" r="13"/><circle class="hub-in" cx="50" cy="50" r="6"/>`:'';
+  return `<path class="wire-out" d="${SHAPE[t]}"/><path class="wire" d="${SHAPE[t]}"/><path class="flow" d="${SHAPE[t]}"/>${hub}`;
+}
+const miniPiece=t=>`<rect width="100" height="100" rx="14" fill="#13774d"/><g transform="translate(14 14) scale(.72)">${pieceInner(t)}</g>`;
+document.querySelectorAll('[data-piece]').forEach(s=>s.innerHTML=miniPiece(s.dataset.piece));
+
+/* ---------- Niveles: [columnas, filas, largo mínimo, relleno, LED, prob. de T extra] ---------- */
+const LV=[[3,2,3,0,1,0],[4,2,4,.3,1,0],[4,3,5,.4,1,.1],[5,3,5,.5,2,.1],[5,4,6,.5,2,.15],
+          [6,4,7,.6,2,.15],[6,4,6,.6,3,.2],[6,5,8,.7,3,.2],[7,5,8,.7,3,.25],[7,5,9,.75,4,.25],
+          [7,6,10,.8,4,.3],[8,6,11,.85,4,.3],[8,6,10,.9,5,.3],[9,6,12,.9,5,.35],[9,7,12,1,6,.35]];
+const NL=LV.length, LIMIT=5*60*1000, TS=100, ML=190, MR=150, MT=34;
+const LEDC=['#ff4d4d','#3ddc84','#4da6ff','#ffd23a','#c77dff','#ff9f1c'];
+let lvl=0,cols,rows,sy,leds,grid,moves=0,won=false,nlit=0,mode='total',remaining=LIMIT,running=false,last=0,elapsed=0,lowWarned=0,soundOn=true,ac;
+let compQ=[],nextComp=0,compBusy=false,holdUntil=0,levelTime=0,nextHint=30000,hintCell=null,hintsUsed=0;
+const $=id=>document.getElementById(id), rnd=k=>Math.floor(Math.random()*k);
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=rnd(i+1);[a[i],a[j]]=[a[j],a[i]]}return a};
+
+function gen(minP,nl){
+  const K=(x,y)=>x+','+y, used=new Set(), M=Array.from({length:rows},()=>Array(cols).fill(0)), ledRows=[];
+  const link=(a,b)=>{const d=D.find(d=>d[1]===b[0]-a[0]&&d[2]===b[1]-a[1])[0];M[a[1]][a[0]]|=d;M[b[1]][b[0]]|=opp(d)};
+  const search=(st,ty,minLen,blocked)=>{
+    const tx=cols-1;
+    { // ¿se puede llegar? (evita búsquedas inútiles)
+      const seen=new Set([K(...st)]),q=[st];let found=false;
+      while(q.length&&!found){const[x,y]=q.pop();for(const[,dx,dy]of D){const nx=x+dx,ny=y+dy,k=K(nx,ny);
+        if(nx<0||nx>=cols||ny<0||ny>=rows||seen.has(k)||blocked.has(k))continue;if(nx===tx&&ny===ty){found=true;break}seen.add(k);q.push([nx,ny])}}
+      if(!found)return null;
+    }
+    let cnt=0;const cur=[st],vis=new Set([K(...st)]);
+    const dfs=(x,y)=>{
+      if(++cnt>2500)return false;
+      if(x===tx&&y===ty)return cur.length>=minLen;
+      for(const[,dx,dy]of shuffle(D.slice())){
+        const nx=x+dx,ny=y+dy,k=K(nx,ny);
+        if(nx<0||nx>=cols||ny<0||ny>=rows||vis.has(k)||blocked.has(k))continue;
+        vis.add(k);cur.push([nx,ny]);
+        if(dfs(nx,ny))return true;
+        cur.pop();vis.delete(k);
+      }
+      return false;
+    };
+    return dfs(st[0],st[1])?cur:null;
+  };
+  sy=rnd(rows);
+  const ly0=rnd(rows);let p=null;
+  for(let m=minP;m>=1&&!p;m--)p=search([0,sy],ly0,m,new Set());
+  if(!p)return null;
+  p.forEach((c,i)=>{used.add(K(...c));if(i)link(p[i-1],c)});ledRows.push(ly0);
+  for(let k=1;k<nl;k++){
+    let ok=false;
+    for(const ly of shuffle([...Array(rows).keys()])){
+      if(ok)break;
+      if(ledRows.includes(ly)||used.has(K(cols-1,ly)))continue;
+      const starts=shuffle([...used].map(s=>s.split(',').map(Number))).slice(0,10);
+      for(const mb of[4,3,2]){
+        if(ok)break;
+        for(const st of starts){
+          const blocked=new Set(used);blocked.delete(K(...st));
+          const q=search(st,ly,mb,blocked);
+          if(q){q.forEach((c,i)=>{used.add(K(...c));if(i)link(q[i-1],c)});ledRows.push(ly);ok=true;break}
+        }
+      }
+    }
+    if(!ok)return null;
+  }
+  M[sy][0]|=8; ledRows.forEach(ly=>M[ly][cols-1]|=2);
+  return {M,ledRows};
+}
+
+function build(n){
+  for(let guard=0;guard<30;guard++){ if(buildOnce(n))return; }
+}
+// Genera un nivel y comprueba que la solución enciende todos los LED antes de usarlo
+function buildOnce(n){
+  let minP,fill,nl,tp;[cols,rows,minP,fill,nl,tp]=LV[n];
+  let G=null;
+  for(let q=nl;q>=1&&!G;q--)for(let a=0;a<250&&!G;a++)G=gen(minP,q);
+  leds=G.ledRows.sort((a,b)=>a-b).map((y,i)=>({y,c:LEDC[i%LEDC.length],on:false}));
+  grid=Array.from({length:rows},(_,y)=>Array.from({length:cols},(_,x)=>({x,y,t:null,r:0})));
+  for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){
+    let need=G.M[y][x];if(!need)continue;
+    grid[y][x].need=need;
+    const b=bits(need),c=grid[y][x];
+    let t=b===4?'X':b===3?'T':(need===5||need===10)?'I':'L';
+    if(b===2&&Math.random()<tp){t='T';const ex=[1,2,4,8].filter(v=>!(need&v));need|=ex[rnd(ex.length)]}
+    else if(b===3&&n>=4&&Math.random()<tp*.4){t='X';need=15}
+    c.t=t;for(let r=0;r<4;r++)if(maskOf(t,r)===need){c.r=r;c.sol=r;break}
+  }
+  for(const c of grid.flat())if(c.t)c.r=c.sol;
+  analyze();
+  if(!won)return false;
+  const POOL=n>=3?['I','L','L','T','I','L','X']:['I','L','L','T','I'];
+  for(const row of grid)for(const c of row)if(!c.t&&Math.random()<fill){c.t=POOL[rnd(POOL.length)];c.r=rnd(4)}
+  let tries=0;
+  do{for(const row of grid)for(const c of row)if(c.t)c.r=rnd(4);analyze()}while(nlit>0&&tries++<80);
+  for(const row of grid)for(const c of row){c.ang=c.r*90;c.r0=c.r}
+  return true;
+}
+
+function analyze(){
+  const lit=new Set(),key=(x,y)=>y*cols+x,s=grid[sy][0];
+  if(s.t&&(maskOf(s.t,s.r)&8)){
+    lit.add(key(0,sy));const q=[[0,sy]];
+    while(q.length){
+      const[x,y]=q.shift(),m=maskOf(grid[y][x].t,grid[y][x].r);
+      for(const[b,dx,dy]of D){
+        if(!(m&b))continue;const nx=x+dx,ny=y+dy;
+        if(nx<0||ny<0||nx>=cols||ny>=rows)continue;
+        const n=grid[ny][nx];
+        if(!n.t||!(maskOf(n.t,n.r)&opp(b))||lit.has(key(nx,ny)))continue;
+        lit.add(key(nx,ny));q.push([nx,ny]);
+      }
+    }
+  }
+  nlit=0;
+  for(const l of leds){const e=grid[l.y][cols-1];l.on=lit.has(key(cols-1,l.y))&&!!(maskOf(e.t,e.r)&2);if(l.on)nlit++}
+  won=nlit===leds.length;
+  return lit;
+}
+
+/* ---------- Dibujo de la placa ---------- */
+function render(){
+  const W=ML+cols*TS+MR,H=MT*2+rows*TS,gx=ML+cols*TS,ey=MT+sy*TS+50;
+  const svg=$('board');svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  let s=`<defs><filter id="blur" x="-1" y="-1" width="3" height="3"><feGaussianBlur stdDeviation="9"/></filter></defs>`;
+  s+=`<rect x="${ML-16}" y="${MT-16}" width="${cols*TS+32}" height="${rows*TS+32}" rx="18" fill="#0f6340" stroke="#06331f" stroke-width="5"/>`;
+  for(const[cx,cy]of[[ML-4,MT-4],[gx+4,MT-4],[ML-4,MT+rows*TS+4],[gx+4,MT+rows*TS+4]])
+    s+=`<circle cx="${cx}" cy="${cy}" r="6" fill="#06331f" stroke="#d4a64a" stroke-width="3"/>`;
+  // batería
+  s+=`<g><rect x="22" y="${ey-28}" width="108" height="56" rx="9" fill="#263238" stroke="#0d1418" stroke-width="3"/>`+
+     `<rect x="96" y="${ey-28}" width="34" height="56" rx="9" fill="#e08a2e"/><rect x="96" y="${ey-28}" width="10" height="56" fill="#e08a2e"/>`+
+     `<rect x="130" y="${ey-10}" width="9" height="20" rx="2" fill="#c9ced6" stroke="#0d1418" stroke-width="2"/>`+
+     `<text class="silk" x="113" y="${ey+9}" text-anchor="middle" font-size="26" fill="#fff">+</text>`+
+     `<text class="silk" x="44" y="${ey+9}" text-anchor="middle" font-size="28" fill="#fff">−</text>`+
+     `<text class="silk" x="72" y="${ey+7}" text-anchor="middle" font-size="16" fill="#9fb3bd">9V</text>`+
+     `<text class="silk" x="76" y="${ey+52}" text-anchor="middle" font-size="18">Batería</text></g>`;
+  s+=`<g class="live"><path class="wire-out" d="M139 ${ey} H${ML}"/><path class="wire" d="M139 ${ey} H${ML}"/><path class="flow" d="M139 ${ey} H${ML}"/></g>`;
+  // casillas
+  for(const row of grid)for(const c of row){
+    const lab=c.t?`Pieza ${NAME[c.t]}. Toca para girar.`:'Casilla vacía';
+    s+=`<g class="cell${c.t?'':' empty'}" data-x="${c.x}" data-y="${c.y}" transform="translate(${ML+c.x*TS} ${MT+c.y*TS})" ${c.t?'tabindex="0" role="button"':''} aria-label="${lab}">`+
+       `<rect class="plate" x="4" y="4" width="92" height="92" rx="10"/>`+
+       (c.t?`<g class="rot" style="transform:rotate(${c.ang}deg)"><rect width="100" height="100" fill="none"/>${pieceInner(c.t)}</g>`
+           :`<circle cx="50" cy="50" r="8" fill="#0c5434" stroke="#d4a64a" stroke-width="3"/>`)+`</g>`;
+  }
+  // LED
+  leds.forEach((l,i)=>{
+    const y=MT+l.y*TS+50,x=gx+40;
+    s+=`<g class="led" id="led${i}" style="--c:${l.c}">`+
+       `<g class="exit"><path class="wire-out" d="M${gx} ${y} H${x}"/><path class="wire" d="M${gx} ${y} H${x}"/><path class="flow" d="M${gx} ${y} H${x}"/></g>`+
+       `<circle class="glow" cx="${x+34}" cy="${y}" r="34" fill="${l.c}" filter="url(#blur)"/>`+
+       `<rect x="${x}" y="${y-18}" width="9" height="36" rx="2" fill="${l.c}" stroke="#06331f" stroke-width="2.5"/>`+
+       `<path class="dome" d="M${x+9} ${y-15} H${x+34} A15 15 0 0 1 ${x+34} ${y+15} H${x+9} Z" fill="${l.c}" stroke="#06331f" stroke-width="2.5"/>`+
+       `<rect class="shine" x="${x+14}" y="${y-10}" width="14" height="4" rx="2" fill="#fff"/>`+
+       `<text class="silk" x="${x+26}" y="${y-24}" text-anchor="middle" font-size="15">D${i+1}</text></g>`;
+  });
+  svg.innerHTML=s;
+  svg.querySelectorAll('.cell[tabindex]').forEach(g=>{
+    const c=grid[+g.dataset.y][+g.dataset.x];c.el=g;c.rotEl=g.querySelector('.rot');
+    g.addEventListener('pointerdown',e=>{e.preventDefault();turn(c)});
+    g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();turn(c)}});
+  });
+  refresh();
+}
+function refresh(){
+  const lit=analyze();
+  for(const row of grid)for(const c of row)if(c.el)c.el.classList.toggle('lit',lit.has(c.y*cols+c.x));
+  leds.forEach((l,i)=>{const g=$('led'+i);g.classList.toggle('on',l.on);g.querySelector('.exit').classList.toggle('live',l.on)});
+  $('mv').textContent=moves;$('ld').textContent=nlit+'/'+leds.length;
+}
+
+/* ---------- Juego ---------- */
+function turn(c){
+  if(!running||won)return;
+  const prev=nlit;
+  c.r=(c.r+1)%4;c.ang+=90;c.rotEl.style.transform=`rotate(${c.ang}deg)`;
+  moves++;refresh();
+  if(hintCell===c&&satisfied(c)){c.el.classList.remove('hint');hintCell=null}
+  beep(nlit>prev?760:300+rnd(60),nlit>prev?.12:.05);
+  if(won)levelDone();
+}
+function levelDone(){
+  running=false;
+  [523,659,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,.13),i*110));
+  $('prog').children[lvl].className='done';
+  putAway();cheer(true);
+  say(lvl===NL-1?'¡Encendiste todos los LED!':[`¡${leds.length>1?'Todos los LED encendidos':'LED encendido'}! Excelente.`,'¡Bravo! Vamos a la siguiente placa.','¡El circuito funciona! Sigue así.','¡Qué buen trabajo de electrónica!'][rnd(4)],2000);
+  setTimeout(()=>{cheer(false);if(lvl===NL-1)finish();else load(lvl+1)},1800);
+}
+function load(n){
+  lvl=n;moves=0;levelTime=0;nextHint=30000;hintCell=null;build(n);render();
+  [...$('prog').children].forEach((li,i)=>li.className=i<n?'done':i===n?'cur':'');
+  $('lv').textContent=n+1;
+  if(mode==='nivel'){remaining=LIMIT;lowWarned=0}
+  if(n>0)say(leds.length>1?`Nivel ${n+1}: enciende los ${leds.length} LED. Las piezas en T y en cruz reparten la energía.`:`Nivel ${n+1}. ¡Tú puedes!`,3500);
+  last=performance.now();running=true;paintTime();
+}
+function start(){
+  ['start','win','lose'].forEach(id=>$(id).hidden=true);
+  document.querySelector('.confetti')?.remove();
+  remaining=LIMIT;elapsed=0;lowWarned=0;buddyState('');putAway();
+  compQ=[];nextComp=performance.now()+5000;
+  $('clockLab').textContent=mode==='total'?'Tiempo del reto':'Tiempo del nivel';
+  load(0);
+  say('¡Gira las piezas para que la energía llegue de la batería al LED! Tócame y te muestro un componente.',4500);
+}
+function finish(){
+  running=false;buddyState('happy');
+  const t=fmt(elapsed);
+  $('winTxt').textContent=mode==='total'
+    ?`Encendiste los LED de las 15 placas en ${t}, antes de los 5 minutos. ¡Eres todo un experto en circuitos!`
+    :`Superaste las 15 placas, cada una antes de 5 minutos. Tiempo total: ${t}.`;
+  $('whoWin').innerHTML=bigMascot('happy');$('win').hidden=false;confetti();
+  [523,659,784,659,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,.16),i*140));
+}
+function lose(){
+  running=false;putAway();buddyState('sad');say('No pasa nada. ¡Inténtalo otra vez!');
+  $('loseTxt').textContent=mode==='total'
+    ?`Se acabaron los 5 minutos. Llegaste hasta el nivel ${lvl+1} de 15.`
+    :`Se acabaron los 5 minutos del nivel ${lvl+1}.`;
+  $('whoLose').innerHTML=bigMascot('sad');$('lose').hidden=false;
+  [330,262,196].forEach((f,i)=>setTimeout(()=>beep(f,.22),i*200));
+}
+const fmt=ms=>{const s=Math.max(0,Math.ceil(ms/1000));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
+function paintTime(){
+  $('time').textContent=fmt(remaining);
+  $('timebar').style.width=(remaining/LIMIT*100)+'%';
+  $('clock').classList.toggle('low',remaining<=60000);
+}
+setInterval(()=>{
+  const now=performance.now();
+  if(running){
+    const d=now-last;remaining-=d;elapsed+=d;levelTime+=d;
+    if(levelTime>=nextHint){nextHint=levelTime+20000;giveHint()}
+    if(remaining<=60000&&lowWarned<1){lowWarned=1;putAway();say('¡Queda menos de un minuto! ¡Rápido!',3000)}
+    else if(remaining<=20000&&lowWarned<2){lowWarned=2;say('¡Últimos segundos, casi lo logras!',3000)}
+    if(remaining<=0){remaining=0;paintTime();lose();return}
+    paintTime();
+    if(now>nextComp&&now>holdUntil&&!compBusy)showComp();
+  }
+  last=now;
+},200);
+
+
+/* ---------- Pistas: después de 30 s en un nivel ---------- */
+const satisfied=c=>(maskOf(c.t,c.r)&c.need)===c.need;
+function findHint(){
+  const seen=new Set(),q=[grid[sy][0]];seen.add(grid[sy][0]);
+  while(q.length){
+    const c=q.shift();
+    if(!satisfied(c))return c;
+    for(const[b,dx,dy]of D){
+      if(!(c.need&b))continue;
+      const n=grid[c.y+dy]&&grid[c.y+dy][c.x+dx];
+      if(n&&n.need&&!seen.has(n)){seen.add(n);q.push(n)}
+    }
+  }
+  return null;
+}
+function giveHint(){
+  if(!running||won)return;
+  const c=findHint();if(!c)return;
+  if(hintCell&&hintCell.el)hintCell.el.classList.remove('hint');
+  hintCell=c;c.el.classList.add('hint');hintsUsed++;
+  let k=1;while(k<4&&(maskOf(c.t,(c.r+k)%4)&c.need)!==c.need)k++;
+  putAway();
+  const first=levelTime<45000;
+  say(`<b>¡Pista!</b>${first?'Sigue la energía desde la batería. ':''}Toca ${k===1?'una vez':k+' veces'} la pieza que parpadea.`,8000);
+  [660,880].forEach((f,i)=>setTimeout(()=>beep(f,.1),i*120));
+}
+
+/* ---------- Chispa: mensajes y componentes ---------- */
+function say(html,hold=0){
+  const b=$('bubble');b.innerHTML=html;b.classList.remove('pop');void b.offsetWidth;b.classList.add('pop');
+  holdUntil=performance.now()+hold;
+}
+function showComp(){
+  if(compBusy)return;
+  if(!compQ.length)compQ=COMP.slice(0,2).concat(shuffle(COMP.slice(2)));
+  const[k,name,txt]=compQ.shift(),bd=$('buddy');
+  compBusy=true;bd.classList.remove('show');bd.classList.add('reach');beep(520,.06);
+  setTimeout(()=>{
+    $('itemIcon').innerHTML=`<g transform="scale(1.2)">${ICON[k]}</g>`;
+    bd.classList.remove('reach');bd.classList.add('show');beep(880,.08);
+    say(`<b>Esto es ${name}.</b>${txt}`,9000);
+    nextComp=performance.now()+20000;
+    setTimeout(()=>{compBusy=false},700);
+  },550);
+  clearTimeout(showComp.t);showComp.t=setTimeout(()=>bd.classList.remove('show'),9000);
+}
+function putAway(){$('buddy').classList.remove('show','reach');compBusy=false}
+function cheer(on){$('buddy').classList.toggle('happy',on)}
+function buddyState(s){$('buddy').classList.remove('happy','sad');if(s)$('buddy').classList.add(s)}
+function bigMascot(st){return `<svg viewBox="-52 -12 222 226" class="${st}" aria-hidden="true">${mascotSVG()}</svg>`}
+$('buddySvg').innerHTML=mascotSVG();
+$('whoStart').innerHTML=bigMascot('');
+$('buddyBtn').onclick=()=>{if(!compBusy){holdUntil=0;showComp()}};
+
+function confetti(){
+  const box=document.createElement('div');box.className='confetti';
+  const cs=['#ffc21a','#23a862','#2b8ce6','#e5484d','#ffffff','#c77dff'];
+  for(let i=0;i<90;i++){const e=document.createElement('i');e.style.left=Math.random()*100+'vw';e.style.background=cs[i%6];
+    e.style.animationDuration=(2.2+Math.random()*2.5)+'s';e.style.animationDelay=(Math.random()*1.2)+'s';box.appendChild(e)}
+  document.body.appendChild(box);
+}
+
+/* ---------- Sonido ---------- */
+function beep(f,d=.08){
+  if(!soundOn)return;
+  try{ac=ac||new (window.AudioContext||window.webkitAudioContext)();const o=ac.createOscillator(),v=ac.createGain();
+    o.type='triangle';o.frequency.value=f;v.gain.setValueAtTime(.08,ac.currentTime);v.gain.exponentialRampToValueAtTime(.001,ac.currentTime+d);
+    o.connect(v);v.connect(ac.destination);o.start();o.stop(ac.currentTime+d)}catch(e){}
+}
+
+/* ---------- Controles ---------- */
+for(let i=0;i<NL;i++)$('prog').appendChild(document.createElement('li'));
+$('how').innerHTML=['I','L','T','X'].map(t=>`<svg viewBox="0 0 100 100">${miniPiece(t)}</svg>`).join('');
+$('go').onclick=()=>{mode=document.querySelector('input[name=mode]:checked').value;start()};
+$('again').onclick=start;
+$('retry').onclick=()=>{
+  if(mode==='total')start();
+  else{$('lose').hidden=true;buddyState('');remaining=LIMIT;lowWarned=0;load(lvl);say('¡Otra vez! Esta vez lo logras.',3000)}
+};
+$('reset').onclick=()=>{
+  if(!running)return;
+  for(const row of grid)for(const c of row)if(c.t&&c.r!==c.r0){const k=(c.r0-c.r+4)%4;c.r=c.r0;c.ang+=k*90;c.rotEl.style.transform=`rotate(${c.ang}deg)`}
+  moves=0;refresh();if(hintCell&&satisfied(hintCell)){hintCell.el.classList.remove('hint');hintCell=null}
+  say('Piezas en su lugar inicial. ¡A intentarlo!',2500);
+};
+$('sound').onclick=e=>{soundOn=!soundOn;e.currentTarget.textContent='Sonido: '+(soundOn?'sí':'no');e.currentTarget.setAttribute('aria-pressed',soundOn)};
+
+build(0);render();paintTime();$('prog').children[0].className='cur';
+</script>
+</body>
+</html>
